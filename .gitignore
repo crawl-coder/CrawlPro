@@ -1,0 +1,158 @@
+# ==================== 通用 ====================
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 编辑器文件
+*.swp
+*.swo
+*~
+.swp
+.swo
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 日志文件
+*.log
+logs
+*.logs
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.temp
+
+# 环境变量文件（必须忽略！）
+.env
+.env.*
+!.env.example  # ✅ 但保留 .env.example 供开发者参考
+
+# ==================== Python / 后端 ====================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.envs/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# celery
+celerybeat-schedule.*
+celerybeat.pid
+
+# ==================== Node.js / 前端 ====================
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnpm-debug.log
+.npm
+.yarn
+
+# 构建输出
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# 测试
+coverage/
+.nyc_output/
+
+# ==================== 数据库 ====================
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL / MySQL（开发用）
+data/
+*.dump
+
+# Alembic 版本文件（可选：如果你希望版本化迁移）
+# 如果你希望团队共享迁移脚本，不要忽略
+# 否则取消注释下面一行
+# alembic/versions/
+
+# ==================== 其他 ====================
+# 上传的项目文件（敏感！）
+uploaded_projects/
+logs/
+tmp/
+
+# 编译文件
+*.pyc
+*.log.*
+
+# IDE
+.cache
+.pytest_cache/
+.hypothesis/
+coverage.xml
+*.cover
+.heroku/
+
+# Docker
+.dockerignore
+compose.yaml
+compose.yml
+docker-compose*.yml
+.docker/
+
+# OS X
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+$RECYCLE.BIN/
+Desktop.ini
+pagefile.sys
+hiberfil.sys
+swapfile.sys
