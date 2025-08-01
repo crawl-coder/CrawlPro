@@ -1,14 +1,11 @@
 # /backend/app/tasks/worker_signals.py
-
+import os
 import socket
-import logging
+import platform
 import requests
-from celery.signals import heartbeat_sent, worker_process_init, worker_shutdown
+from loguru import logger
+from celery.signals import worker_process_init, worker_shutdown, heartbeat_sent
 from app.core.config import settings
-
-# --- 配置日志 ---
-logging.basicConfig(level=settings.LOG_LEVEL or "INFO")
-logger = logging.getLogger(__name__)
 
 # --- 获取本机信息 ---
 def get_local_ip() -> str:
@@ -18,31 +15,38 @@ def get_local_ip() -> str:
             s.connect(("8.8.8.8", 80))
             return s.getsockname()[0]
     except Exception:
-        return "unknown"
+        return "127.0.0.1"  # 安全兜底
 
-hostname = socket.gethostname()
-local_ip = get_local_ip()
+# --- 基础信息 ---
+HOSTNAME = socket.gethostname()
+LOCAL_IP = get_local_ip()
+WORKER_OS = platform.system().upper()  # 'WINDOWS' or 'LINUX'
+WORKER_OS_VERSION = platform.release()  # 更稳定的版本号
+PYTHON_VERSION = platform.python_version()
+
 
 # --- Redis 心跳键 ---
-HEARTBEAT_KEY = f"nodes:heartbeat:{hostname}"
-HEARTBEAT_TTL = settings.NODE_HEARTBEAT_TTL or 60  # 秒
+HEARTBEAT_KEY = f"nodes:heartbeat:{HOSTNAME}"
+HEARTBEAT_TTL = getattr(settings, 'NODE_HEARTBEAT_TTL', 60)  # 默认 60 秒
 
 # --- CrawlPro API 注册地址 ---
-REGISTER_URL = f"{settings.CRAWLPRO_API_URL.rstrip('/')}/api/v1/nodes/heartbeat"
+# ✅ 修复拼写错误：CRAWL_PRO_API_URL
+REGISTER_URL = f"{settings.CRAWL_PRO_API_URL.rstrip('/')}/api/v1/nodes/heartbeat"
 
 # --- 信号处理 ---
 
 @worker_process_init.connect
 def worker_process_init_handler(**kwargs):
     """
-    比 worker_ready 更可靠的初始化信号
     在每个 Worker 子进程启动时触发
+    上报节点信息到主服务
     """
-    logger.info(f"Worker process initializing on {hostname} (IP: {local_ip})")
+    os.environ["OS_TYPE"] = WORKER_OS
+    logger.info(f"Worker process initializing on {HOSTNAME} (IP: {LOCAL_IP}, OS: {WORKER_OS})")
 
-    # 1. 向 Redis 上报心跳（用于快速检测）
+    # 1. 向 Redis 上报心跳
     try:
-        from redis import from_url, Redis
+        from redis import from_url
         redis_client = from_url(settings.REDIS_URL, decode_responses=True)
         redis_client.set(HEARTBEAT_KEY, "1", ex=HEARTBEAT_TTL)
         logger.info(f"Heartbeat key set in Redis: {HEARTBEAT_KEY}")
@@ -54,8 +58,16 @@ def worker_process_init_handler(**kwargs):
         response = requests.post(
             REGISTER_URL,
             data={
-                "hostname": hostname,
-                "ip": local_ip
+                "hostname": HOSTNAME,
+                "ip": LOCAL_IP,
+                "os": WORKER_OS,
+                "os_version": WORKER_OS_VERSION,
+                "python_version": PYTHON_VERSION,
+                "version": getattr(settings, 'WORKER_VERSION', '1.0.0'),
+                "cpu_cores": platform.processor(),  # 简单标识
+                "memory_gb": getattr(settings, 'WORKER_MEMORY_GB', None),
+                "tags": getattr(settings, 'WORKER_TAGS', ''),
+                "max_concurrency": getattr(settings, 'WORKER_CONCURRENCY', 4)
             },
             timeout=5
         )
@@ -77,7 +89,7 @@ def heartbeat_sent_handler(**kwargs):
         from redis import from_url
         redis_client = from_url(settings.REDIS_URL, decode_responses=True)
         redis_client.set(HEARTBEAT_KEY, "1", ex=HEARTBEAT_TTL)
-        logger.debug(f"Heartbeat updated for {hostname}")
+        logger.debug(f"Heartbeat updated for {HOSTNAME}")
     except Exception as e:
         logger.warning(f"Heartbeat update failed: {e}")
 
@@ -87,7 +99,7 @@ def worker_shutdown_handler(**kwargs):
     """
     Worker 关闭时清理资源
     """
-    logger.info(f"Worker {hostname} is shutting down. Cleaning up...")
+    logger.info(f"Worker {HOSTNAME} is shutting down. Cleaning up...")
 
     # 1. 清理 Redis 心跳
     try:
@@ -98,12 +110,14 @@ def worker_shutdown_handler(**kwargs):
     except Exception as e:
         logger.warning(f"Failed to delete heartbeat key: {e}")
 
-    # 2. 可选：通知主服务（幂等操作，失败也无妨）
+    # 2. 可选：通知主服务节点离线（幂等）
     try:
+        offline_url = f"{settings.CRAWL_PRO_API_URL.rstrip('/')}/api/v1/nodes/offline"
         requests.post(
-            f"{settings.CRAWLPRO_API_URL}/api/v1/nodes/offline",
-            data={"hostname": hostname},
+            offline_url,
+            data={"hostname": HOSTNAME},
             timeout=3
         )
-    except Exception:
-        pass  # 无需阻塞退出
+        logger.info(f"Sent offline notification to {offline_url}")
+    except Exception as e:
+        logger.debug(f"Offline notification failed (ignored): {e}")

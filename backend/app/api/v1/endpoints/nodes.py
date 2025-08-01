@@ -18,7 +18,7 @@ def read_nodes(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_user)  # ✅ 正确：前端用户查看
+    current_user: models.User = Depends(deps.get_current_active_user)
 ):
     return crud_node.get_multi(db, skip=skip, limit=limit)
 
@@ -42,14 +42,29 @@ def node_heartbeat(
     *,
     hostname: str = Form(...),
     ip: str = Form(...),
+    os: str = Form(None),  # ✅ 新增：接收操作系统类型
     db: Session = Depends(deps.get_db)
-    # ❌ 不要加 current_user！Worker 没有 Token
 ):
     """
     Worker 定期上报心跳，无需认证
     """
     try:
-        db_node = crud_node.register_or_update(db, hostname=hostname, ip_address=ip)
+        # ✅ 如果未提供 os，可以根据 hostname 或其他逻辑推断（可选）
+        if not os:
+            # 简单推断
+            if "win" in hostname.lower():
+                os = "WINDOWS"
+            elif "linux" in hostname.lower():
+                os = "LINUX"
+            else:
+                os = "UNKNOWN"  # 或者直接报错
+
+        db_node = crud_node.register_or_update(
+            db,
+            hostname=hostname,
+            ip_address=ip,
+            os=os  # ✅ 传入 os
+        )
         return db_node
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to register node: {str(e)}")
@@ -61,7 +76,7 @@ def mark_node_offline(
     *,
     node_id: int,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_superuser)  # ✅ 只有 superuser 能操作
+    current_user: models.User = Depends(deps.get_current_active_superuser)
 ):
     db_node = crud_node.get(db, id=node_id)
     if not db_node:

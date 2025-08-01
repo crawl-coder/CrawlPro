@@ -23,4 +23,5 @@ class User(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
 
     # ✅ 启用：用户与项目的关联关系
+    git_credentials = relationship("GitCredential", back_populates="user", cascade="all, delete-orphan")
     projects: Mapped[List["Project"]] = relationship("Project", back_populates="owner", cascade="all, delete-orphan")

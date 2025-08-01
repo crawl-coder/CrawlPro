@@ -29,6 +29,12 @@ app.include_router(health_router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+"""
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ2MTkzNzAsInN1YiI6Im9zY2FyIiwidHlwZSI6ImFjY2VzcyJ9.u0i0CeTKpbpaJlNIhOjOMjjkRHMhcpfWezvgomujkBE",
+  "token_type": "bearer"
+}
+"""
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,14 +1,21 @@
+# /app/db/session.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
-# 创建数据库引擎
-# connect_args 是为了解决某些MySQL版本下的连接问题
+# 使用同步的 URL
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+
+# 创建同步引擎
 engine = create_engine(
-    settings.DATABASE_URL,
+    SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    echo=False, # 生产环境设为 False
 )
 
-# 创建数据库会话工厂
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# 创建同步 Session 工厂
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)

@@ -1,5 +1,5 @@
 # /app/crud/crud_node.py
-
+import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update, func
@@ -14,24 +14,20 @@ class CRUDNode(CRUDBase[Node, NodeCreate, NodeUpdate]):
         result = db.execute(stmt)
         return result.scalar_one_or_none()
 
-    def register_or_update(self, db: Session, *, hostname: str, ip_address: str) -> Node:
-        """注册或更新节点"""
-        db_node = self.get_by_hostname(db, hostname=hostname)
-        if not db_node:
-            db_node = self.model(
-                hostname=hostname,
-                ip_address=ip_address,
-                status=NodeStatus.ONLINE
-            )
-            db.add(db_node)
+    def register_or_update(self, db, *, hostname: str, ip_address: str, os: str):
+        node = self.get_by_hostname(db, hostname=hostname)
+        if not node:
+            node_in = NodeCreate(hostname=hostname, ip_address=ip_address, os=os)
+            node = self.create(db, obj_in=node_in)
         else:
-            db_node.ip_address = ip_address
-            db_node.status = NodeStatus.ONLINE
-            db_node.last_heartbeat = func.now()
-
+            node_update = NodeUpdate(ip_address=ip_address, os=os)
+            node = self.update(db, db_obj=node, obj_in=node_update)
+        node.status = "ONLINE"
+        node.last_heartbeat = datetime.datetime.utcnow()
+        db.add(node)
         db.commit()
-        db.refresh(db_node)
-        return db_node
+        db.refresh(node)
+        return node
 
     def heartbeat(self, db: Session, *, hostname: str) -> bool:
         """节点心跳"""

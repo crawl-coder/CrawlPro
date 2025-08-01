@@ -1,14 +1,15 @@
 # /backend/app/startup/dependencies.py
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import engine
 from app.services.scheduler import scheduler_service
 from fastapi import Depends, HTTPException, status
 from app.core.config import settings
-from typing import Generator, Optional
+from typing import Generator, AsyncGenerator, Optional # 添加 AsyncGenerator
 
 def get_db() -> Generator[Session, None, None]:
     """
-    获取数据库会话的依赖项
+    获取【同步】数据库会话的依赖项
     使用方式：db: Session = Depends(get_db)
     """
     db = Session(engine)
@@ -16,6 +17,7 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
 
 def verify_healthcheck_token(token: Optional[str] = None):
     """

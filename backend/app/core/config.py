@@ -1,9 +1,14 @@
 # /backend/app/core/config.py
 import os
+from pathlib import Path
 from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings
 from pydantic.networks import AnyHttpUrl
+
+
+# 获取项目根目录
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # 指向 CrawlPro 目录
 
 
 class Settings(BaseSettings):
@@ -43,6 +48,10 @@ class Settings(BaseSettings):
         "mysql+mysqldb://root:oscar&0503@localhost:3306/crawl_pro?charset=utf8mb4",
         description="MySQL 8 数据库连接地址"
     )
+    SQLALCHEMY_DATABASE_URL: str = Field(
+        "mysql+asyncmy://root:oscar&0503@localhost:3306/crawl_pro?charset=utf8mb4",
+        description="MySQL 8 数据库连接地址(异步)"
+    )
 
     # 同步连接（用于 Alembic 迁移）
     DATABASE_SYNC_URL: Optional[str] = Field(
@@ -74,15 +83,16 @@ class Settings(BaseSettings):
     )
 
     # 上传的爬虫项目存储目录
-    PROJECTS_DIR: str = Field(
-        "uploaded_projects",
-        description="爬虫项目 ZIP 解压后的存储路径（相对或绝对）"
-    )
+    PROJECTS_DIR: str = str(BASE_DIR / "uploaded_projects")
 
     # 日志目录
     LOGS_DIR: str = Field(
         "logs",
         description="日志文件存储目录"
+    )
+    LOG_LEVEL: str = Field(
+        "INFO",
+        description="日志级别：DEBUG/INFO/WARNING/ERROR"
     )
 
     # 临时文件目录
@@ -108,6 +118,14 @@ class Settings(BaseSettings):
     CRAWL_PRO_API_URL: str = "http://localhost:8000"
     TIMEZONE: str = "Asia/Shanghai"
     NODE_HEARTBEAT_CHECK_INTERVAL: int = 30
+    # 用于加密 Git Token 的密钥
+    # 请使用 `Fernet.generate_key()` 生成一个，并妥善保管
+    ENCRYPTION_KEY: str = "8_mSLW_XAA62wk_Wxaj_5LSFKI5Tc2JPmwXM3Bfe-vI="
+
+    WORKER_VERSION: str = Field("1.0.0", description="Worker 版本")
+    WORKER_TAGS: str = Field("", description="Worker 标签，如 gpu,proxy")
+    WORKER_CONCURRENCY: int = Field(4, description="Worker 最大并发数")
+    WORKER_MEMORY_GB: Optional[float] = Field(None, description="Worker 内存大小（GB）")
 
     # ==================== 初始化处理 ====================
     class Config:

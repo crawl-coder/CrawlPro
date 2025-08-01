@@ -36,14 +36,35 @@ class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         result = db.execute(stmt)
         return cast(List[Project], result.scalars().all())
 
+    def get_multi_by_owner(
+        self, db: Session, *, owner_id: int, skip: int = 0, limit: int = 100
+    ) -> List[Project]:
+        """
+        根据所有者 ID 查询其拥有的项目列表（分页）
+        """
+        stmt: Select[tuple[Project]] = (
+            select(self.model)
+            .where(self.model.owner_id == owner_id)
+            .offset(skip)
+            .limit(limit)
+            .order_by(self.model.created_at.desc())
+        )
+        result = db.execute(stmt)
+        return cast(List[Project], result.scalars().all())
+
     def create(self, db: Session, *, obj_in: ProjectCreate) -> Project:
-        """创建新项目，确保名称唯一"""
-        # 检查是否已存在同名项目
+        """创建新项目，确保名称唯一，并注入 owner_id 和 package_path"""
         existing = self.get_by_name(db, name=obj_in.name)
         if existing:
             raise ValueError(f"Project with name '{obj_in.name}' already exists.")
 
         obj_in_data = obj_in.model_dump(exclude_unset=True)
+
+        if 'owner_id' not in obj_in_data:
+            raise ValueError("owner_id is required")
+        if 'package_path' not in obj_in_data:
+            raise ValueError("package_path is required")
+
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
         db.flush()
@@ -64,7 +85,6 @@ class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
 
-        # 如果更新了 name，检查唯一性
         if "name" in update_data:
             existing = self.get_by_name(db, name=update_data["name"])
             if existing and existing.id != db_obj.id:
@@ -73,7 +93,7 @@ class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         return super().update(db, db_obj=db_obj, obj_in=obj_in)
 
     def remove(self, db: Session, *, id: int) -> Optional[Project]:
-        """删除项目（自动级联删除任务？需数据库外键配置）"""
+        """删除项目"""
         stmt: Select[tuple[Project]] = select(self.model).where(self.model.id == id)
         result = db.execute(stmt)
         obj = result.scalar_one_or_none()
